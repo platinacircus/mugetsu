@@ -1,123 +1,108 @@
-# Mugetsu
+# Mugetsu source
 
-**A faster way to play AdventureQuest Worlds on Windows, Linux and macOS.**
-Crowded rooms, big fights and room changes stay at a smooth, steady frame rate.
+Mugetsu is [Ruffle](https://github.com/ruffle-rs/ruffle) (the open-source Flash Player emulator)
+with changes for AdventureQuest Worlds. This folder holds those changes as patches on top of
+Ruffle, plus the scripts that build `Mugetsu.exe` (Windows), `Mugetsu` (Linux) and `Mugetsu.app` from them.
 
-### [⬇ Download the latest version](https://github.com/mugetsu-aqw/mugetsu/releases/latest)
+Every release is built from this folder by GitHub Actions (`.github/workflows/build.yml`); each
+run's page shows the build log and the SHA-256 of the files it made, which match the files on
+the release page.
 
-Unzip, run `Mugetsu.exe`, log in. Nothing to install. (Linux: extract the `-linux` archive and run `Mugetsu`.
-macOS: unzip the `-macos-universal` zip and open `Mugetsu.app`.)
+## What's here
 
-## Contact
+| File | What it is |
+|---|---|
+| `RUFFLE_COMMIT` | The Ruffle commit Mugetsu is based on (nightly of 2026-10-02) |
+| `RUST_VERSION` | The Rust version releases are built with |
+| `patches/ruffle.patch` | All of Mugetsu's changes to Ruffle |
+| `patches/wgpu-core.patch`, `wgpu-hal.patch`, `gc-arena.patch`, `lyon_path.patch`, `lyon_algorithms.patch` | Changes to five libraries Ruffle uses (wgpu-core 30.0.1, wgpu-hal 30.0.1, gc-arena 0.7.0, lyon_path 1.0.7, lyon_algorithms 1.0.5 from crates.io) |
+| `pgo/aqw.profdata.zip` | The speed profile (PGO): counts of which code runs most while playing AQW, recorded with a measuring build. The compiler uses it to optimize for real play. It holds function names and counts only. |
+| `build-windows.ps1`, `build-linux.sh`, `build-macos.sh` | Download Ruffle at `RUFFLE_COMMIT` and the five libraries, apply the patches and build (Windows, Linux, macOS) |
+| `release/`, `release-linux/`, `release-macos/` | The other files in the Windows zip, the Linux archive and the macOS zip (readme, license texts, notices) |
+| `notes/` | Release notes, used for the draft release |
 
-Questions, bug reports or feedback: Discord **silver09415**. For help with the Linux version: Discord
-**jonasalv0** first, or **silver09415**. When reporting a problem, include your log (`%LOCALAPPDATA%\ruffle\log\ruffle.log` on Windows,
-`~/.cache/ruffle/log` on Linux; it has no account details).
+## Building it yourself (Windows)
 
----
+You need [Rust](https://rustup.rs) (`rustup toolchain install 1.99.0`), Java 17 or newer (Ruffle
+compiles its Flash classes with it) and git. Then, in this folder:
 
-## What it is
+```
+powershell -ExecutionPolicy Bypass -File build-windows.ps1
+```
 
-Mugetsu is an **unofficial, modified build of [Ruffle](https://ruffle.rs)**, the open-source Flash Player
-emulator that Artix's own Game Launcher also uses. It plays AQW straight from Artix's servers; no game
-files are included or changed.
+The result is `build\out\Mugetsu.exe`. `-NoPgo` builds without the speed profile. A build takes
+a while: Ruffle is a large program.
 
-All the changes are inside the player:
+Mugetsu.exe needs a processor with AVX2. For older ones, run the script a second time with
+`-Compat` (it reuses the source prepared by the first run): the result is
+`build\out\Mugetsu-compat.exe`, built for SSE4.2 only. Releases ship both.
 
-- drawing work spread over all CPU cores
-- avatar effects and glows drawn together on shared canvases instead of one by one (since 1.3:
-  several times faster on laptops and built-in graphics)
-- much less work per frame in fights and when changing rooms
-- fixed memory leaks that made long sessions slower and slower
-- smoother mouse handling and frame pacing
-- fixes for crashes on AMD graphics and on graphics cards that run out of memory, and much less
-  graphics memory used in heavy fights
+Your build won't be byte-for-byte identical to a release (file paths and the machine differ), but
+it's made from the same code the same way.
 
-It **does not** change gameplay, automate anything, or give any advantage. It just draws the same game faster.
+## Building it yourself (Linux)
 
-## How much faster?
+You need [Rust](https://rustup.rs) (`rustup toolchain install 1.99.0`), Java 17 or newer, git and
+the development files of a few system libraries (on Debian or Ubuntu:
+`sudo apt install build-essential pkg-config libasound2-dev libudev-dev libfontconfig-dev libfreetype6-dev libssl-dev`).
+Then, in this folder:
 
-In crowded rooms like Yulgar, Mugetsu held a steady **24 FPS** in testing (at a 24 FPS game setting).
-On the same PC, Flash drops to **7–10 FPS** and standard Ruffle to **8–16 FPS**: Mugetsu is
-**up to 3× faster** than both.
+```
+./build-linux.sh
+```
 
-On a laptop with Intel UHD 620 graphics (Quality Low), version 1.3 holds **30 FPS** in a crowded room
-where version 1.2 managed about 20, and draws each frame about **3.5× faster**.
+The result is `build/out/Mugetsu`. `--no-pgo` builds without the speed profile.
 
-## Requirements
+## Building it yourself (macOS)
 
-- Windows 10 or 11, 64-bit, or 64-bit Linux from about 2022 on (Ubuntu 22.04, Debian 12, Fedora 36,
-  SteamOS 3 or newer; Linux uses Vulkan or OpenGL, details in the README inside the Linux download),
-  or macOS 11 (Big Sur) or newer on Apple silicon or Intel (uses Metal; details in the README inside
-  the macOS download)
-- A graphics card with **Vulkan** (NVIDIA GTX 600 / AMD Radeon HD 7000 / Intel 6th-gen Core or newer).
-  On Intel and Qualcomm (Snapdragon) graphics, Mugetsu uses DirectX 12 (their Vulkan drivers crash
-  or show a black window on several chips); since 1.1 it runs about as well as Vulkan. Without Vulkan,
-  Mugetsu also uses DirectX 12 and tells you so, and if a graphics driver crashes when Vulkan starts,
-  it switches to DirectX 12 by itself. To choose yourself, **right-click Mugetsu's title bar** → Graphics: Automatic, Vulkan
-  or DirectX 12 (try DirectX 12 if the window stays black or stutters).
-- **Graphics memory:** 2 GB minimum (with AQW's Quality set to **Low**), 4 GB or more recommended
-- **RAM:** 8 GB minimum, 16 GB recommended
-- **CPU with AVX2** for `Mugetsu.exe` (Windows and Linux): Intel 4th-gen Core (2013) or newer, AMD Ryzen or newer.
-  **Older processors (Windows):** use `Mugetsu-compat.exe`, in the same folder, which only needs SSE4.2
-  (Intel Core i3/i5/i7 from 2010, AMD FX or newer; for example the Core i3-2100). It may run slower.
+You need macOS 11 or newer, [Rust](https://rustup.rs) (`rustup toolchain install 1.99.0`),
+Java 17 or newer and git. Then, in this folder:
 
-## How to use
+```
+./build-macos.sh
+```
 
-1. Download the `-windows.zip` from **[Releases](https://github.com/mugetsu-aqw/mugetsu/releases/latest)** and unzip it anywhere.
-2. Run `Mugetsu.exe`. The first time, Windows may say *"Windows protected your PC"* because the program
-   isn't signed by a known publisher: click **More info → Run anyway**.
-3. Log in as usual.
+The result is `build/out/Mugetsu.app` (and a release zip next to it). `--universal` builds one
+app for Apple silicon and Intel; it needs both Rust targets (`rustup target add
+aarch64-apple-darwin x86_64-apple-darwin`). `--no-pgo` builds without the speed profile.
 
-**macOS:** unzip the `-macos-universal.zip` and open `Mugetsu.app`. The first time, macOS blocks it
-because it isn't notarized by Apple: open **System Settings → Privacy & Security**, click **Open Anyway**
-next to the message about Mugetsu, then confirm. The README inside the download has the steps for older macOS.
+The macOS build uses Ruffle's macOS features (`fontconfig-dlopen`, so fontconfig is loaded
+from the system at runtime and no Homebrew libraries are needed) and draws with Metal. The
+app is ad-hoc signed, not notarized: macOS blocks the first start of an app downloaded from the
+internet until it's allowed in System Settings > Privacy & Security ("Open Anyway").
 
-**Settings:** right-click anywhere on the game for Mugetsu's menu: **Frame interpolation** (smoother motion on
-strong PCs, off by default), **Edge smoothing**, **Graphics**, **Show FPS**, **Full screen** and **Open log folder**.
+## What the changes do
 
-**Low FPS on a laptop or older PC?** In AQW's Options, set **Quality to Low**. Since 1.5.0, Medium and High
-cost much less than before on built-in graphics, but Low is still the fastest. If Mugetsu notices built-in
-graphics running slowly on Medium or High, it shows this tip once; it never changes the setting for you.
+Speed:
+- Drawing work spread over all CPU cores; effect layers sized to their content and drawn
+  together on shared canvases; glows and blurs drawn in batches; reused graphics memory.
+- Shapes prepared on all cores, once, at the size they're drawn at (no stutter when entering a
+  crowded room); mouse movement applied once per frame; steadier frame pacing and memory
+  cleanup.
+- Memory leaks fixed (weak-keyed `Dictionary`, unused game files freed), plus a faster memory
+  allocator.
+- DirectX 12: a faster command recorder and fixes, used by default on Intel and Qualcomm
+  graphics.
 
-## Safety and privacy
+Looking and working like Flash:
+- 9-slice scaling (`scale9Grid`): stretched boxes keep their corners.
+- Fonts: device-font substitutes with the right weight, embedded fonts looked up in Flash's
+  order.
+- Cutscenes stop at their Next buttons, chat scrolls and can be selected, newer Flash APIs are
+  available to AQW, and more.
 
-- **Nothing is installed**, no admin rights needed. Delete the folder to remove it.
-- **Your password never touches Mugetsu**: you log in on AQW's own login screen, loaded from Artix's servers.
-- **No tracking or telemetry.** The only connections are to Artix's game servers; once, to Cisco to
-  download the free OpenH264 video decoder Ruffle uses for in-game videos; and once at startup, to
-  GitHub to check whether there's a newer Mugetsu version (nothing about you is sent; it only shows a
-  message, nothing is downloaded). To switch the check off, put an empty file named `no-update-check`
-  next to `Mugetsu.exe`.
-- **The log file contains no account details** (no email, username or chat).
-- **Open source.** All of Mugetsu's code is public in the [`source`](source) folder (GPL-3.0), and from version
-  1.3.1 on, every release is built from it by GitHub Actions: each build's page shows its log and the SHA-256 of
-  the zip it made.
-- **VirusTotal (version 1.5.1):** [zip 0/67](https://www.virustotal.com/gui/file/e293fb9ed090985df7ba184b88ce57bbc965995ce65bd536d0b799f576cb8242) · [Mugetsu.exe 0/71](https://www.virustotal.com/gui/file/f8407e7d6924a7426e9d6385f82051c4f37b755a60443e40b60647fa3ea8cdfe) · [Linux archive 0/62](https://www.virustotal.com/gui/file/8788c329b413f59a3544a49a3df2b85e1fd1cc669577741a3602989e97e4f454)
-- **SHA-256** of each release file is listed on its release page, so you can check your download.
+The app around it: AQW's address and settings built in, a settings menu on right-click
+(graphics API choice in the title-bar menu too on Windows), crash and update messages, a
+Quality tip for built-in graphics, and a performance log
+(`%LOCALAPPDATA%\ruffle\log\ruffle.log`; on Linux `~/.cache/ruffle/log/ruffle.log`).
 
-## FAQ
+Comments in the code marked `AQW build:` explain each change.
 
-**Is this a bot or a cheat?**
-No. It doesn't automate anything, change any game files, or send anything the game doesn't send itself.
-It's a faster version of the same player Artix's launcher uses.
+## License
 
-**Is it allowed?**
-Mugetsu isn't affiliated with or endorsed by Artix Entertainment or the Ruffle project. It only changes how
-the unmodified game is drawn, but use it at your own risk and check AQW's Terms of Service if you're unsure.
+Mugetsu's changes are licensed under the GNU General Public License 3.0 (see `LICENSE` at the
+top of this repository). Ruffle is dual-licensed MIT / Apache-2.0, wgpu-core, wgpu-hal,
+lyon_path and lyon_algorithms are MIT / Apache-2.0 and gc-arena is MIT / CC0; their licenses
+still apply to their code, and the release files include all license texts and notices.
 
-**Why does Windows warn me the first time?**
-Mugetsu isn't code-signed (that costs money and requires a public identity), so Windows SmartScreen
-doesn't recognize the publisher. Check the VirusTotal scan and the SHA-256 above if you want to verify it,
-or read the source code it's built from.
-
-**Where are the logs and settings?**
-`%LOCALAPPDATA%\ruffle` (the log is replaced each time you start Mugetsu).
-
-## Licenses
-
-Mugetsu's own changes are licensed under the [GPL-3.0](LICENSE); the source is in the [`source`](source) folder.
-Mugetsu is a modified build of Ruffle (MIT / Apache-2.0) with modified wgpu-core, wgpu-hal (MIT / Apache-2.0)
-and gc-arena (MIT / CC0). License texts for these and all other included libraries and fonts are in the
-`LICENSES` folder and `THIRD-PARTY-NOTICES.txt` in the download. OpenH264 Video Codec provided by
-Cisco Systems, Inc.
+Mugetsu isn't affiliated with or endorsed by Artix Entertainment or the Ruffle project.
